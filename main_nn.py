@@ -91,7 +91,7 @@ if __name__ == '__main__':
     optimizer = optim.SGD(net_glob.parameters(), lr=args.lr, momentum=args.momentum)
     train_loader = DataLoader(dataset_train, batch_size=64, shuffle=True)
 
-    list_loss = []
+    list_loss = [] 
     net_glob.train()
     for epoch in range(args.epochs):
         batch_loss = []
