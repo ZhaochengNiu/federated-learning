@@ -28,42 +28,46 @@ from models.Nets import MLP, CNNMnist, CNNCifar
 def test(net_g, data_loader):
     # testing
     # 定义测试函数，net_g 是要测试的网络模型，data_loader 是包含测试数据的加载器。
-    net_g.eval()
-    # 将网络设置为评估模式，这会关闭Dropout和Batch Normalization层的训练行为。
-    test_loss = 0
+    net_g.eval()  # 将网络设置为评估模式，这会关闭Dropout和Batch Normalization层的训练行为。
+    test_loss = 0 # 初始化测试损失为0。
+    correct = 0  # 初始化正确的预测数为0。
+    l = len(data_loader)   # 获取数据加载器中的批次数量。
+    for idx, (data, target) in enumerate(data_loader):  # 遍历数据加载器中的所有批次。
+        data, target = data.to(args.device), target.to(args.device)   # 将数据和目标转移到指定的设备（CPU或GPU）。
+        log_probs = net_g(data)    # 前向传播，获取模型输出的对数概率。
+        test_loss += F.cross_entropy(log_probs, target).item()  # 计算交叉熵损失，并累加到测试损失。
+        y_pred = log_probs.data.max(1, keepdim=True)[1]   # 找到最大概率对应的类别。
+        correct += y_pred.eq(target.data.view_as(y_pred)).long().cpu().sum()  # 计算预测正确的数量。
 
-    correct = 0
-    l = len(data_loader)
-    for idx, (data, target) in enumerate(data_loader):
-        data, target = data.to(args.device), target.to(args.device)
-        log_probs = net_g(data)
-        test_loss += F.cross_entropy(log_probs, target).item()
-        y_pred = log_probs.data.max(1, keepdim=True)[1]
-        correct += y_pred.eq(target.data.view_as(y_pred)).long().cpu().sum()
-
-    test_loss /= len(data_loader.dataset)
+    test_loss /= len(data_loader.dataset)  # 计算预测正确的数量。
     print('\nTest set: Average loss: {:.4f} \nAccuracy: {}/{} ({:.2f}%)\n'.format(
         test_loss, correct, len(data_loader.dataset),
-        100. * correct / len(data_loader.dataset)))
+        100. * correct / len(data_loader.dataset)))    # 返回测试集的正确预测数和平均损失。
 
     return correct, test_loss
 
 
 if __name__ == '__main__':
     # parse args
+    # 调用 args_parser() 函数来解析命令行参数，这些参数通常用于控制脚本的行为，例如选择数据集、模型类型、学习率等。
     args = args_parser()
+    # 根据 args.gpu 的值和系统是否支持 CUDA，设置 PyTorch 的设备。
+    # 如果 GPU 可用并且 args.gpu 不是 -1（通常表示不使用 GPU），则使用 GPU；否则使用 CPU。
     args.device = torch.device('cuda:{}'.format(args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
-
+    # 设置随机种子，以确保实验的可重复性。
     torch.manual_seed(args.seed)
 
     # load dataset and split users
+    # 这一部分代码是条件判断，根据 args.dataset 的值来加载不同的数据集。
+    # 根据参数 args.dataset 的值，选择加载 MNIST 或 CIFAR-10 数据集，并应用适当的数据转换。
+    # 如果参数不是这两个值之一，脚本将退出并显示错误信息。
     if args.dataset == 'mnist':
         dataset_train = datasets.MNIST('./data/mnist/', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.ToTensor(),
                        transforms.Normalize((0.1307,), (0.3081,))
                    ]))
-        img_size = dataset_train[0][0].shape
+        img_size = dataset_train[0][0].shape  # 获取第一个训练数据样本的形状，这通常用于确定输入层的大小。
     elif args.dataset == 'cifar':
         transform = transforms.Compose(
             [transforms.ToTensor(),
@@ -74,6 +78,7 @@ if __name__ == '__main__':
         exit('Error: unrecognized dataset')
 
     # build model
+    # 根据参数 args.model 和 args.dataset 的组合，实例化不同的模型类，并将其移动到指定的设备上。
     if args.model == 'cnn' and args.dataset == 'cifar':
         net_glob = CNNCifar(args=args).to(args.device)
     elif args.model == 'cnn' and args.dataset == 'mnist':
@@ -85,28 +90,31 @@ if __name__ == '__main__':
         net_glob = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes).to(args.device)
     else:
         exit('Error: unrecognized model')
+    # 打印模型的摘要，以便于查看模型结构。
     print(net_glob)
 
     # training
+    # 创建一个 SGD 优化器，使用从 args 解析出的学习率和动量参数。
     optimizer = optim.SGD(net_glob.parameters(), lr=args.lr, momentum=args.momentum)
+    # 创建一个 DataLoader 对象，用于从 dataset_train 加载数据，批大小设置为 64，并且每个 epoch 开始时都会打乱数据顺序。
     train_loader = DataLoader(dataset_train, batch_size=64, shuffle=True)
 
-    list_loss = []
-    net_glob.train()
-    for epoch in range(args.epochs):
-        batch_loss = []
-        for batch_idx, (data, target) in enumerate(train_loader):
-            data, target = data.to(args.device), target.to(args.device)
-            optimizer.zero_grad()
-            output = net_glob(data)
-            loss = F.cross_entropy(output, target)
-            loss.backward()
-            optimizer.step()
-            if batch_idx % 50 == 0:
+    list_loss = []  # 初始化一个列表来记录每个epoch的平均损失。
+    net_glob.train()   # 将网络设置为训练模式。
+    for epoch in range(args.epochs):  # 进行指定次数的迭代（epochs）。
+        batch_loss = []     # 初始化一个列表来记录当前epoch中每个批次的损失。
+        for batch_idx, (data, target) in enumerate(train_loader):  # 遍历训练数据加载器。
+            data, target = data.to(args.device), target.to(args.device)    # 将数据和目标转移到指定的设备。
+            optimizer.zero_grad()   # 清除之前的梯度，为新的批次准备梯度计算。
+            output = net_glob(data)   # 前向传播，获取模型的输出。
+            loss = F.cross_entropy(output, target)  # 前向传播，获取模型的输出。
+            loss.backward()   # 反向传播，计算梯度。
+            optimizer.step()  # 更新模型参数。
+            if batch_idx % 50 == 0: # 每50个批次打印一次训练进度。
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset),
-                           100. * batch_idx / len(train_loader), loss.item()))
-            batch_loss.append(loss.item())
+                           100. * batch_idx / len(train_loader), loss.item()))  # 记录当前批次的损失。
+            batch_loss.append(loss.item())   # 将当前epoch的平均损失添加到损失列表中。
         loss_avg = sum(batch_loss)/len(batch_loss)
         print('\nTrain loss:', loss_avg)
         list_loss.append(loss_avg)
