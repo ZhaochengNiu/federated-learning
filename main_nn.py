@@ -4,22 +4,34 @@
 
 import matplotlib
 matplotlib.use('Agg')
+# 导入 matplotlib.pyplot 模块，用于绘图。
 import matplotlib.pyplot as plt
 
+
 import torch
+# 导入 PyTorch 库，用于构建和训练神经网络。
 import torch.nn.functional as F
+# 从 PyTorch 库中导入 nn.functional 模块，包含神经网络的函数式接口。
 from torch.utils.data import DataLoader
+# 从 PyTorch 库中导入 DataLoader 类，用于加载数据集。
 import torch.optim as optim
+# 从 PyTorch 库中导入 optim 模块，包含优化器。
 from torchvision import datasets, transforms
+# 从 torchvision 库中导入 datasets 和 transforms 模块，用于处理图像数据集和定义图像转换。
 
 from utils.options import args_parser
+# 从 utils 模块中导入 args_parser 函数，用于解析命令行参数。
 from models.Nets import MLP, CNNMnist, CNNCifar
+# 从 models 模块的 Nets 中导入定义的神经网络模型 MLP, CNNMnist, CNNCifar。
 
 
 def test(net_g, data_loader):
     # testing
+    # 定义测试函数，net_g 是要测试的网络模型，data_loader 是包含测试数据的加载器。
     net_g.eval()
+    # 将网络设置为评估模式，这会关闭Dropout和Batch Normalization层的训练行为。
     test_loss = 0
+
     correct = 0
     l = len(data_loader)
     for idx, (data, target) in enumerate(data_loader):
