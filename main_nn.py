@@ -135,12 +135,15 @@ if __name__ == '__main__':
 
     # testing
     # 这部分代码是条件判断，根据 args.dataset 的值来加载测试数据集。
+    # 根据参数 args.dataset 的值，选择加载 MNIST 或 CIFAR-10 的测试数据集，并应用适当的数据转换。
+    # 如果参数不是这两个值之一，脚本将退出并显示错误信息。
     if args.dataset == 'mnist':
         dataset_test = datasets.MNIST('./data/mnist/', train=False, download=True,
                    transform=transforms.Compose([
                        transforms.ToTensor(),
                        transforms.Normalize((0.1307,), (0.3081,))
                    ]))
+        # 创建一个 DataLoader 对象，用于从 dataset_test 加载测试数据，批大小设置为 1000，且不打乱数据顺序。
         test_loader = DataLoader(dataset_test, batch_size=1000, shuffle=False)
     elif args.dataset == 'cifar':
         transform = transforms.Compose(
@@ -150,6 +153,7 @@ if __name__ == '__main__':
         test_loader = DataLoader(dataset_test, batch_size=1000, shuffle=False)
     else:
         exit('Error: unrecognized dataset')
-
+    # 打印测试数据集的大小，即测试集中样本的数量。
     print('test on', len(dataset_test), 'samples')
+    # 调用之前定义的 test 函数，传入全局模型 net_glob 和测试数据加载器 test_loader，计算测试集上的准确率和损失。
     test_acc, test_loss = test(net_glob, test_loader)
