@@ -120,13 +120,21 @@ if __name__ == '__main__':
         list_loss.append(loss_avg)
 
     # plot loss
+    # 创建一个新的 matplotlib 图。
     plt.figure()
+    # 绘制训练损失的图表。range(len(list_loss)) 生成一个从 0 到 list_loss 长度减 1 的序列，
+    # 代表每个 epoch 的索引；list_loss 是记录每个 epoch 结束时损失的列表。
     plt.plot(range(len(list_loss)), list_loss)
+    # 设置 x 轴的标签为 "epochs"。
     plt.xlabel('epochs')
+    # 设置 y 轴的标签为 "train loss"。
     plt.ylabel('train loss')
+    # 将损失图表保存为 PNG 图片文件。文件名基于数据集、模型和 epoch 数量动态生成，
+    # 保存在 ./log/ 目录下。如果 ./log/ 目录不存在，matplotlib 会抛出 FileNotFoundError。
     plt.savefig('./log/nn_{}_{}_{}.png'.format(args.dataset, args.model, args.epochs))
 
     # testing
+    # 这部分代码是条件判断，根据 args.dataset 的值来加载测试数据集。
     if args.dataset == 'mnist':
         dataset_test = datasets.MNIST('./data/mnist/', train=False, download=True,
                    transform=transforms.Compose([
